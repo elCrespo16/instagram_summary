@@ -2,3 +2,4 @@
 __pycache__/
 session.json
 config.yaml
+*.log

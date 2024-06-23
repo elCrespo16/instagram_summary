@@ -5,6 +5,13 @@ from commands import (CommandInvoker, AddUserCommand, RemoveUserCommand,
 from dotenv import load_dotenv
 from telegram_controller import TelegramController
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+ConsoleOutputHandler = logging.StreamHandler()
+logging.basicConfig(filename='summary.log', encoding='utf-8', level=logging.INFO)
+logger.addHandler(ConsoleOutputHandler)
+logger.setLevel(logging.INFO)
 
 
 def register_commands(command_invoker: CommandInvoker):
