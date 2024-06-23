@@ -10,6 +10,7 @@ class InstagramUserConfig(BaseModel):
     username: str
     stories: bool = True
     posts: bool = True
+    user_id: Optional[int] = None
 
 
 class InstagramConfig(BaseModel):

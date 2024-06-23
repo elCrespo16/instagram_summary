@@ -5,7 +5,7 @@ from user_config import InstagramUserConfig
 from pathlib import Path
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired
-from instagrapi.types import Story, Media
+from instagrapi.types import Media
 
 MAX_DAYS = 1
 MAX_POSTS = 5
@@ -31,13 +31,14 @@ class InstagramController:
         Returns a tuple with the stories and posts URLs.
         """
         logger.info(f"Getting news for user {user.username}")
-        try:
-            user_id = self.client.user_id_from_username(user.username)
-        except Exception as e:
-            logger.info(f"Could not get user id for {user.username}: {e}")
-            return ([], [])
-        stories_urls = self.get_stories(user_id) if user.stories else []
-        posts_urls = self.get_posts(user_id) if user.posts else []
+        if not user.user_id:
+            try:
+                user.user_id = self.client.user_id_from_username(user.username)
+            except Exception as e:
+                logger.info(f"Could not get user id for {user.username}: {e}")
+                return ([], [])
+        stories_urls = self.get_stories(user) if user.stories else []
+        posts_urls = self.get_posts(user) if user.posts else []
         return (stories_urls, posts_urls)
 
     def get_users_that_do_not_follow_back(self) -> list[str]:
@@ -56,11 +57,11 @@ class InstagramController:
             return []
         return not_following_back
 
-    def build_story_url(self, story: Story) -> str:
+    def build_story_url(self, username) -> str:
         """
         Builds the URL for a given story.
         """
-        return f"https://www.instagram.com/stories/{story.user.username}/"
+        return f"https://www.instagram.com/stories/{username}/"
 
     def build_media_url(self, media: Media) -> str:
         """
@@ -68,18 +69,18 @@ class InstagramController:
         """
         return f"https://www.instagram.com/p/{media.code}/"
 
-    def get_stories(self, user_id: int) -> list[str]:
+    def get_stories(self, user: InstagramUserConfig) -> list[str]:
         """
         Fetches the latest stories for a given user.
         """
-        logger.info(f"Getting stories for user {user_id}")
+        logger.info(f"Getting stories for user {user.username}")
         stories_url = []
         try:
-            stories = self.client.user_stories(user_id)
+            stories = self.client.user_stories(user.user_id, 1)
             if stories and self.media_is_recent(stories[0]):
-                stories_url = [self.build_story_url(stories[0])]
+                stories_url = [self.build_story_url(username=user.username)]
         except Exception as e:
-            logger.info(f"Could not get stories for user {user_id}: {e}")
+            logger.info(f"Could not get stories for user {user.username}: {e}")
         return stories_url
 
     def media_is_recent(self, media) -> bool:
@@ -89,16 +90,16 @@ class InstagramController:
         return ((not self.last_updated and media.taken_at > datetime.now(tz=UTC) - timedelta(MAX_DAYS))
                  or (self.last_updated and media.taken_at > self.last_updated))
 
-    def get_posts(self, user_id: int) -> list[str]:
+    def get_posts(self, user: InstagramUserConfig) -> list[str]:
         """
         Fetches the latest posts for a given user.
         """
-        logger.info(f"Getting posts for user {user_id}")
+        logger.info(f"Getting posts for user {user.username}")
         try:
-            posts = self.client.user_medias(user_id, MAX_POSTS, 3)
+            posts = self.client.user_medias(user.user_id, MAX_POSTS, 3)
             return [self.build_media_url(post) for post in posts if self.media_is_recent(post)]
         except Exception as e:
-            logger.info(f"Could not get posts for user {user_id}: {e}")
+            logger.info(f"Could not get posts for user {user.username}: {e}")
             return []
 
     def login_user(self):
