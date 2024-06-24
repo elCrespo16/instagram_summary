@@ -96,25 +96,25 @@ class CommandInvoker(metaclass=Singleton):
     def register(self, command_name, command):
         self._commands[command_name] = command
 
-    def execute(self, command_name, command_args):
-        command = self._commands.get(command_name)
-        if command and command.validate(self.instagram_config, *command_args):
-            return command.execute(self.instagram_config, instagram_controller=self.instagram_controller, *command_args)
-        else:
-            logger.info(f"Command {command_name} not found")
-            return CommandResponse("Command not found", False)
+    def validate_command(self, command: Command, *command_args):
+        return command.validate(self.instagram_config, *command_args)
 
     def parse_command(self, command_string) -> tuple[str, list[str]]:
         command_name = extract_command(command_string)
         command_args = extract_arguments(command_string)
         return command_name, command_args.split()
 
-    def is_command(self, command_string):
-        return self.parse_command(command_string)[0] in self._commands
+    def is_command(self, command_name):
+        return command_name in self._commands
 
     def run(self, command_string) -> CommandResponse:
+        command_name, command_args = self.parse_command(command_string)
         if self.is_command(command_string):
-            command_name, command_args = self.parse_command(command_string)
-            return self.execute(command_name, command_args)
+            command = self._commands.get(command_name)
+            if self.validate_command(command, *command_args):
+                return command.execute(self.instagram_config, instagram_controller=self.instagram_controller, *command_args)
+            else:
+                logger.info(f"Command {command_string} failed validation")
+                return CommandResponse("Command failed validation", False)
         logger.info(f"Command {command_string} not found")
         return CommandResponse("Command not found", False)
